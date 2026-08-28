@@ -408,6 +408,12 @@ export async function startMcpServer(
 		});
 
 		httpServer.listen(opts.preferredPort ?? 0, "127.0.0.1", () => {
+			// The MCP server is a provider-side helper. It must not keep a
+			// headless `pi -p` process alive after the agy turn completes, while
+			// remaining available during an interactive TUI session. Active
+			// requests still keep their sockets alive; only the idle listener is
+			// excluded from Node's event-loop liveness calculation.
+			httpServer.unref();
 			const addr = httpServer.address();
 			const port = typeof addr === "object" && addr ? addr.port : 0;
 			if (!port) {
@@ -430,7 +436,14 @@ export async function startMcpServer(
 				handle: {
 					port,
 					close: async () => {
-						await new Promise<void>((r) => httpServer.close(() => r()));
+						await new Promise<void>((r) => {
+							httpServer.close(() => r());
+							// agy may leave an HTTP keep-alive/MCP stream open after its
+							// turn is complete. `close()` waits for those connections, which
+							// would make pi -p hang during runtime disposal. Shutdown is
+							// already authoritative here, so terminate all active sockets.
+							httpServer.closeAllConnections();
+						});
 						removeBridgeMcpConfig();
 						disposeExitCleanup();
 						log("bridge-config-removed", { port });

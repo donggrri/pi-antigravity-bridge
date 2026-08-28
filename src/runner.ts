@@ -198,6 +198,19 @@ export async function runAgyTurn(
 	let streamIdx = -1;
 	let streamKind: "text" | "thinking" | null = null;
 	let streamEmitted = 0;
+	// A response row can be committed before its protobuf text is visible. Keep
+	// those rows pending while allowing later tool/planner rows to advance; a
+	// single rewind would otherwise block the entire turn on a valid planner
+	// response that intentionally has no text.
+	const pendingResponseSteps = new Set<number>();
+	const emitEvent = (event: AgyEvent, idx: number): void => {
+		onEvent(event);
+		if (event.kind === "text" || event.kind === "thinking") {
+			streamIdx = idx;
+			streamKind = event.kind;
+			streamEmitted = event.text.length;
+		}
+	};
 	const flushStreamStep = (): void => {
 		if (streamIdx < 0 || !poller || !streamKind) return;
 		const s = poller.readStepAt(streamIdx);
@@ -210,6 +223,22 @@ export async function runAgyTurn(
 			}
 		} catch {
 			/* torn re-read; next poll retries */
+		}
+	};
+	const retryPendingResponseSteps = (): void => {
+		if (!poller) return;
+		for (const idx of pendingResponseSteps) {
+			const step = poller.readStepAt(idx);
+			if (!step) continue;
+			try {
+				const event = decodeStep(step);
+				if (!event) continue;
+				pendingResponseSteps.delete(idx);
+				emitEvent(event, idx);
+			} catch {
+				// The writer is still extending this payload; retain it for the
+				// next retry rather than losing a final response.
+			}
 		}
 	};
 	const pollOnce = (): boolean => {
@@ -233,6 +262,11 @@ export async function runAgyTurn(
 		}
 		if (!poller.isOpen && !poller.tryOpen()) return false;
 
+		// Re-read incomplete response rows even if SQLite has not yet exposed a
+		// new data_version. Some final payloads become visible during shutdown
+		// after the row itself was observed.
+		retryPendingResponseSteps();
+
 		// Coalesce: one data_version check per tick gates BOTH the in-place
 		// re-read (flushStreamStep -> readStepAt) and the new-row read. While
 		// agy is thinking and hasn't committed, hasChanged() is false and we
@@ -244,22 +278,20 @@ export async function runAgyTurn(
 		flushStreamStep();
 		const steps = poller.readNewSteps();
 		for (const step of steps) {
-			// A torn read (agy mid-write) can throw RangeError out of the protobuf
-			// walker. Drop that step rather than aborting the whole turn  -  the
-			// row settles on the next poll. (agy-acp database.ts pattern, lifted
-			// to the decode layer where the throw actually originates.)
 			try {
 				const event = decodeStep(step);
-				if (event) {
-					onEvent(event);
-					if (event.kind === "text" || event.kind === "thinking") {
-						streamIdx = step.idx;
-						streamKind = event.kind;
-						streamEmitted = event.text.length;
-					}
+				if (!event) {
+					// A stepType 15 row can be either a text-less planner decision or
+					// an incompletely written final response. Advance either way, but
+					// retain it for a non-blocking re-read on later polls.
+					if (step.stepType === 15) pendingResponseSteps.add(step.idx);
+					continue;
 				}
+				emitEvent(event, step.idx);
 			} catch {
-				/* drop undecodable step; lastIdx still advances past it */
+				// Keep malformed/torn response payloads pending without rewinding
+				// the cursor: later planner/tool rows must continue to stream.
+				if (step.stepType === 15) pendingResponseSteps.add(step.idx);
 			}
 		}
 		flushStreamStep();
@@ -368,7 +400,11 @@ export async function runAgyTurn(
 	// Trailing polls: agy may flush a final step moments after exit. The
 	// agy-acp pattern (3 x 100ms) catches these without adding noticeable latency.
 	if (!wasAborted) {
-		for (let i = 0; i < TRAILING_POLLS; i++) {
+		// A late final response needs a slightly longer shutdown drain than the
+		// normal DB flush window. This only adds time when a response row was
+		// observed before its text became decodable.
+		const trailingPolls = pendingResponseSteps.size > 0 ? 10 : TRAILING_POLLS;
+		for (let i = 0; i < trailingPolls; i++) {
 			pollOnce();
 			await sleep(TRAILING_POLL_MS);
 		}

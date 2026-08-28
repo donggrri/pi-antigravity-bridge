@@ -114,7 +114,15 @@ export class ConversationPoller {
 	 *  avoid a redundant SELECT every idle tick while agy is thinking. */
 	hasChanged(): boolean {
 		if (!this.db || !this.dataVersionStmt) return true; // force a read on first poll
-		const row = this.dataVersionStmt.get() as { data_version?: number } | undefined;
+		let row: { data_version?: number } | undefined;
+		try {
+			row = this.dataVersionStmt.get() as { data_version?: number } | undefined;
+		} catch {
+			// A writer may briefly hold SQLite's lock while committing a step.
+			// Do not let that transient state escape the poll loop; retry the
+			// SELECT on the next tick.
+			return true;
+		}
 		const v = row?.data_version ?? 0;
 		if (this.lastDataVersion === null) {
 			this.lastDataVersion = v;
@@ -131,12 +139,24 @@ export class ConversationPoller {
 	 *  rows. Advances the cursor past every successfully-read row. */
 	readNewSteps(): Step[] {
 		if (!this.db || !this.selectStmt) return [];
-		const rows = this.selectStmt.all(this._lastIdx) as Array<{
+		let rows: Array<{
 			idx: number;
 			step_type: number;
 			status: number;
 			step_payload: unknown;
 		}>;
+		try {
+			rows = this.selectStmt.all(this._lastIdx) as Array<{
+				idx: number;
+				step_type: number;
+				status: number;
+				step_payload: unknown;
+			}>;
+		} catch {
+			// The writer can hold the lock for a short interval around a commit.
+			// Keep the cursor unchanged and retry on the next poll.
+			return [];
+		}
 		const out: Step[] = [];
 		let advanced = this._lastIdx;
 		for (const r of rows) {
@@ -162,6 +182,16 @@ export class ConversationPoller {
 	 *  in-place re-read. */
 	poll(): Step[] {
 		return this.hasChanged() ? this.readNewSteps() : [];
+	}
+
+	/** Move the cursor back so a step can be retried on the next poll.
+	 *
+	 * agy can expose a step row before its protobuf payload has been fully
+	 * materialized. `readNewSteps()` must advance past the row to preserve
+	 * ordering, but a stream step whose text is not decodable yet must not be
+	 * lost permanently. */
+	rewindTo(idx: number): void {
+		if (Number.isInteger(idx)) this._lastIdx = Math.min(this._lastIdx, idx - 1);
 	}
 
 	/** Read a single step by idx without advancing the cursor. Used to re-check
