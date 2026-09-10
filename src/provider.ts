@@ -13,7 +13,7 @@
 // matching pi-claude-bridge's lifecycle):
 //   agy text     -> pi text block  (text_start / text_delta / text_end)
 //   agy thinking -> pi thinking block
-//   agy tool     -> pi thinking block, labelled "[agy tool: <name>]"
+//   agy tool     -> pi thinking block, with descriptive label (see tool-labels.ts)
 // We do NOT emit toolCall blocks: agy runs its OWN closed tool loop, so there
 // is no toolUse stopReason and no tool-result delivery path back to pi.
 
@@ -35,6 +35,7 @@ import { SessionStore } from "./sessions.js";
 import { loadConfig } from "./config.js";
 import path from "node:path";
 import { TurnDiffContext, createExecGitOps, parseEditToolInput } from "./diff-render.js";
+import { formatToolLabel } from "./tool-labels.js";
 
 const DEFAULT_TIMEOUT_MIN = 10;
 
@@ -403,7 +404,7 @@ async function runTurn(
 					appendThinking(`[agy edit: ${label}]\n`);
 					if (outcome.text) appendThinking(`${outcome.text}\n`);
 				} else {
-					appendThinking(`[agy tool: ${event.name}]\n`);
+					appendThinking(`${formatToolLabel(event.name, event.inputJson ?? "")}\n`);
 				}
 				break;
 			}

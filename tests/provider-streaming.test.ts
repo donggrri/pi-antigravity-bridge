@@ -141,7 +141,7 @@ test("tool events route through the thinking block as a label", async () => {
 	]);
 	assert.equal(joinText(events), "answer");
 	assert.ok(
-		joinThinking(events).includes("[agy tool: read_file]"),
+		joinThinking(events).includes("[agy read: read_file]"),
 		`thinking block should carry the tool label, got: ${JSON.stringify(joinThinking(events))}`,
 	);
 });
