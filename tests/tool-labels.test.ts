@@ -1,15 +1,17 @@
 import { describe, test } from "vitest";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { formatToolLabel } from "../src/tool-labels.js";
 
 describe("formatToolLabel", () => {
 	// --- view_file / read_file -----------------------------------------------
 
 	test("view_file with AbsolutePath shows shortened path", () => {
+		const absPath = path.join(process.cwd(), "src", "models.ts");
 		const label = formatToolLabel("view_file", JSON.stringify({
-			AbsolutePath: "/home/dongjin/pi-antigravity-bridge/src/models.ts",
+			AbsolutePath: absPath,
 		}));
-		assert.match(label, /\[agy read: .+models\.ts\]/);
+		assert.equal(label, "[agy read: src/models.ts]");
 		assert.ok(!label.includes("[agy tool:"), `should not use fallback: ${label}`);
 	});
 

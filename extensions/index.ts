@@ -37,7 +37,7 @@ import {
 } from "../src/models.js";
 import { SessionStore } from "../src/sessions.js";
 import { createStreamSimple } from "../src/provider.js";
-import { CONFIG_PATH, loadConfig, saveConfig, type AgyMode, type ThinkingTier } from "../src/config.js";
+import { CONFIG_PATH, loadConfig, saveConfig, shouldLogHeadlessPatchMissing, type AgyMode, type ThinkingTier } from "../src/config.js";
 import { registerAskAntigravityTool, toolModelsFromRaw } from "../src/ask-tool.js";
 import { hasInvokeTool, startMcpServer, type McpServerHandle } from "../src/mcp-server.js";
 import { applyInvokeToolPatch, decidePatchAction, patchStatus, restorePatch } from "../src/patcher.js";
@@ -191,9 +191,13 @@ export default async function (pi: ExtensionAPI): Promise<void> {
 					break;
 				}
 				case "headless-skip": {
-					console.error(
-						"[antigravity-bridge] pi.invokeTool patch missing; MCP tool bridge off. Apply interactively (/agy patch apply) or re-run pi in a TUI.",
-					);
+					// Headless `-p` loads always hit this when the patch is missing.
+					// Stay quiet by default (same as the declined path); opt in via PI_AGY_DEBUG.
+					if (shouldLogHeadlessPatchMissing()) {
+						console.error(
+							"[antigravity-bridge] pi.invokeTool patch missing; MCP tool bridge off. Apply interactively (/agy patch apply) or re-run pi in a TUI.",
+						);
+					}
 					break;
 				}
 			}

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2026-10-28
+
+### Changed
+
+- **Fork metadata** (`@donggrri/pi-antigravity-bridge`): repository, bugs, and homepage point at `donggrri/pi-antigravity-bridge`.
+- **Headless `-p` loads** no longer print the missing `pi.invokeTool` patch warning every time; set `PI_AGY_DEBUG=1` to opt in ( `PI_AGY_QUIET=1` suppresses).
+- **README** leads with `pi install git:github.com/donggrri/pi-antigravity-bridge` and notes git installs do not auto-update.
+- **CI**: GitHub Actions runs `npm run test:ci` (`tsc --noEmit` + vitest).
+- **Smoke**: `scripts/smoke-in-pi.sh` optionally runs a `pi -p` turn when `agy models` succeeds; skips when agy auth is absent.
+
 ## [1.2.5] - 2026-08-24
 
 ### Fixed

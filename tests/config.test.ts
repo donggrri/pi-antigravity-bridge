@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadConfig, saveConfig } from "../src/config.js";
+import { loadConfig, saveConfig, shouldLogHeadlessPatchMissing } from "../src/config.js";
 
 function tmpConfig(): string {
 	return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "agy-cfg-")), "config.json");
@@ -45,5 +45,26 @@ test("config: an unrelated save does not clobber invokeToolPatchDeclined", () =>
 		assert.equal(loadConfig(p).mode, "plan");
 	} finally {
 		fs.rmSync(path.dirname(p), { recursive: true, force: true });
+	}
+});
+
+test("config: shouldLogHeadlessPatchMissing respects PI_AGY_DEBUG and PI_AGY_QUIET", () => {
+	const prevDebug = process.env.PI_AGY_DEBUG;
+	const prevQuiet = process.env.PI_AGY_QUIET;
+	try {
+		delete process.env.PI_AGY_DEBUG;
+		delete process.env.PI_AGY_QUIET;
+		assert.equal(shouldLogHeadlessPatchMissing(), false);
+
+		process.env.PI_AGY_DEBUG = "1";
+		assert.equal(shouldLogHeadlessPatchMissing(), true);
+
+		process.env.PI_AGY_QUIET = "1";
+		assert.equal(shouldLogHeadlessPatchMissing(), false);
+	} finally {
+		if (prevDebug === undefined) delete process.env.PI_AGY_DEBUG;
+		else process.env.PI_AGY_DEBUG = prevDebug;
+		if (prevQuiet === undefined) delete process.env.PI_AGY_QUIET;
+		else process.env.PI_AGY_QUIET = prevQuiet;
 	}
 });
