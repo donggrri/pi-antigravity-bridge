@@ -46,7 +46,7 @@ This fork is maintained for use with [steppi](https://github.com/donggrri/steppi
 pi install git:github.com/donggrri/pi-antigravity-bridge
 ```
 
-Git installs are checked out under pi's package tree and **do not auto-update** when this repository moves forward. After `git pull` here (or when you want the latest commit), run `pi install git:github.com/donggrri/pi-antigravity-bridge` again—the same manual refresh pattern as [`pi-cursor-provider`](https://github.com/cursor/pi-cursor-provider).
+Git installs are checked out under pi's package tree and **do not auto-update** when this repository moves forward. After `git pull` here (or when you want the latest commit), run `pi install git:github.com/donggrri/pi-antigravity-bridge` again—the same manual refresh pattern as [`pi-cursor-provider`](https://github.com/donggrri/pi-cursor-provider).
 
 **npm (upstream publish name, if you use it):**
 
