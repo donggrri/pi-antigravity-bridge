@@ -44,6 +44,8 @@ npx tsx scripts/test-extension.ts
 npm run smoke:pi
 ```
 
+`smoke-in-pi.sh` probes `pi --list-models antigravity` without `-e ./extensions` first (for `pi install git:…` setups). It only adds `-e ./extensions` when models are missing from the default load path, so AskAntigravity is not registered twice. When `agy models` succeeds locally, it also runs one bounded `pi -p` turn using a model id parsed from the live list (including two-column list-models output).
+
 ## Debugging a hang or "stuck" turn
 
 Most "stuck" reports trace to one of:
