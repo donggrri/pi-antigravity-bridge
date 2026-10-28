@@ -38,6 +38,22 @@ When the capability is present the bridge starts a localhost MCP server inside p
 
 ## Install
 
+This fork is maintained for use with [steppi](https://github.com/donggrri/steppi) and other hosts on [`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi-coding-agent) (for example ~1.4.x). Upstream origin: [winterstream/pi-antigravity-bridge](https://github.com/winterstream/pi-antigravity-bridge).
+
+**Recommended (this fork):**
+
+```bash
+pi install git:github.com/donggrri/pi-antigravity-bridge
+```
+
+Git installs are checked out under pi's package tree and **do not auto-update** when this repository moves forward. After `git pull` here (or when you want the latest commit), run `pi install git:github.com/donggrri/pi-antigravity-bridge` again—the same manual refresh pattern as [`pi-cursor-provider`](https://github.com/cursor/pi-cursor-provider).
+
+**npm (upstream publish name, if you use it):**
+
+```bash
+pi install npm:@estebanforge/pi-antigravity-bridge
+```
+
 > ⚠️ **Heads-up: this extension patches your `pi` install.** When it loads and
 > the running pi lacks `pi.invokeTool()`, it **asks you once** whether to edit
 > files inside your globally-installed `@earendil-works/pi-coding-agent/dist/`
@@ -61,12 +77,6 @@ When the capability is present the bridge starts a localhost MCP server inside p
 > process.
 >
 > Details for the patch can be found in [docs/PI-INVOKETOOL-PATCH.md](docs/PI-INVOKETOOL-PATCH.md).
-
-Install with pi's package manager:
-
-```bash
-pi install npm:@estebanforge/pi-antigravity-bridge
-```
 
 Requires the **`agy` CLI** installed and authenticated. If you don't have it, follow Google's [official install guide](https://antigravity.google/docs/cli/install) for your platform, then run `agy` once to complete Google OAuth. The extension resolves `agy` on `$PATH`, or via the `AGY_BIN` environment variable.
 
@@ -131,6 +141,8 @@ For isolation when running any agent that executes commands without a confirmati
 | `AGY_SKIP_PERMISSIONS` | `1`/`true` (default) to pass `--dangerously-skip-permissions` so commands don't hang on an unanswerable prompt in `-p` mode. `0`/`false` to prompt (hangs any `run_command` non-interactively). Wins over the config file. |
 | `AGY_DEFAULT_MODEL` | Default model alias for the `AskAntigravity` tool (`flash`/`pro`/`gemini`, or a tier/version qualifier). Wins over the config file. |
 | `AGY_DEFAULT_THINKING` | Default thinking tier for the `AskAntigravity` tool: `low`/`medium`/`high`. Anything else falls back to `medium`. Wins over the config file. |
+| `PI_AGY_DEBUG` | `1`/`true`: log the headless missing `pi.invokeTool` patch hint on `-p` loads (MCP bridge still off until patched). |
+| `PI_AGY_QUIET` | `1`/`true`: suppress that debug hint even when `PI_AGY_DEBUG` is set. |
 
 ## Development
 

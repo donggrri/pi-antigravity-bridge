@@ -65,3 +65,59 @@ echo "PASS: $count antigravity model line(s) registered via pi's loader"
 echo
 echo "registered:"
 grep "antigravity" <<<"$output"
+
+# Optional print-mode smoke: one non-interactive turn when agy is authenticated.
+# Skips quietly when agy is missing or `agy models` fails (no OAuth in CI).
+# Set SMOKE_PI_PRINT=1 to require this step (fail if agy unavailable).
+smoke_print_mode() {
+	local require="${SMOKE_PI_PRINT:-}"
+	if [[ "$require" != "1" ]]; then
+		if ! command -v agy >/dev/null 2>&1; then
+			echo "SKIP: print-mode smoke (agy not on PATH; set SMOKE_PI_PRINT=1 to require)"
+			return 0
+		fi
+		set +e
+		timeout 20s agy models >/dev/null 2>&1
+		local agy_rc=$?
+		set -e
+		if [[ $agy_rc -ne 0 ]]; then
+			echo "SKIP: print-mode smoke (agy models failed; authenticate agy or set SMOKE_PI_PRINT=1 to require)"
+			return 0
+		fi
+	elif ! command -v agy >/dev/null 2>&1; then
+		echo "FAIL: SMOKE_PI_PRINT=1 but agy not on PATH" >&2
+		exit 1
+	elif ! timeout 20s agy models >/dev/null 2>&1; then
+		echo "FAIL: SMOKE_PI_PRINT=1 but agy models failed (auth/network?)" >&2
+		exit 1
+	fi
+
+	echo
+	echo "smoke: pi -p one-line turn (agy authenticated)"
+	local model_line
+	model_line="$(grep -m1 "antigravity/" <<<"$output" | awk '{print $1}')"
+	if [[ -z "$model_line" ]]; then
+		model_line="antigravity/gemini-3-6-flash-medium"
+	fi
+	set +e
+	local print_out
+	print_out="$(timeout 90s pi -e ./extensions -p "Reply with exactly: OK" --model "$model_line" 2>&1)"
+	local print_rc=$?
+	set -e
+	if [[ $print_rc -eq 124 ]]; then
+		echo "FAIL: pi -p timed out after 90s" >&2
+		exit 1
+	fi
+	if [[ $print_rc -ne 0 ]]; then
+		echo "FAIL: pi -p exited $print_rc" >&2
+		echo "$print_out" >&2
+		exit 1
+	fi
+	if [[ -z "$print_out" ]]; then
+		echo "FAIL: pi -p produced no output" >&2
+		exit 1
+	fi
+	echo "PASS: pi -p completed with model $model_line"
+}
+
+smoke_print_mode

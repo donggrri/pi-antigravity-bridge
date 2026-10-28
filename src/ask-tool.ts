@@ -756,7 +756,7 @@ function renderAgentMessagesMarkdown(messages: readonly unknown[]): string {
  *  ~/.pi/extensions-data/<author>/<extension>/ convention (see pi-token-cost-ledger).
  *  Derived from getAgentDir() so rebranded distros resolve correctly. */
 function askContextDir(): string {
-	return path.join(path.dirname(getAgentDir()), "extensions-data", "estebanforge", "pi-antigravity-bridge");
+	return path.join(path.dirname(getAgentDir()), "extensions-data", "donggrri", "pi-antigravity-bridge");
 }
 
 interface AgyDetails {

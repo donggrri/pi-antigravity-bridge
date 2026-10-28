@@ -116,4 +116,14 @@ export function saveConfig(patch: Partial<AgyConfig>, configPath: string = CONFI
 	return next;
 }
 
+/** Log the headless missing-patch hint when PI_AGY_DEBUG is set. PI_AGY_QUIET=1 always suppresses. */
+export function shouldLogHeadlessPatchMissing(): boolean {
+	const quiet = process.env.PI_AGY_QUIET;
+	if (quiet === "1" || (typeof quiet === "string" && quiet.toLowerCase() === "true")) {
+		return false;
+	}
+	const debug = process.env.PI_AGY_DEBUG;
+	return debug === "1" || (typeof debug === "string" && debug.toLowerCase() === "true");
+}
+
 export { CONFIG_PATH };
